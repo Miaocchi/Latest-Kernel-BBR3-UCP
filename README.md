@@ -109,6 +109,8 @@ GitHub Actions 工作流位于：
 .github/workflows/build.yml
 ```
 
+工作流需要仓库的 `GITHUB_TOKEN` 具备 `contents: write` 权限，否则内核包可以构建成功，但创建 Release 时会报 `Resource not accessible by integration`。
+
 主要步骤：
 
 1. 从 `https://www.kernel.org` 获取最新 stable 内核版本。

@@ -8,6 +8,10 @@ on:
 env:
   GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
+permissions:
+  contents: write
+  actions: write
+
 jobs:
   cleanup:
     runs-on: ubuntu-latest
@@ -27,6 +31,7 @@ jobs:
   build:
     needs: cleanup
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: x86_64
@@ -104,16 +109,16 @@ jobs:
           scripts/config --set-str DEFAULT_TCP_CONG "ucp"
           make olddefconfig
 
-      - name: Build Kernel
-        working-directory: ./kernel/linux/
-        run: |
-          make bindeb-pkg -j$(nproc)
-
       - name: Upload config
         uses: actions/upload-artifact@v4
         with:
           name: config-${{ matrix.arch }}
           path: ./kernel/linux/.config
+
+      - name: Build Kernel
+        working-directory: ./kernel/linux/
+        run: |
+          make bindeb-pkg -j$(nproc)
 
       - name: Upload deb
         uses: actions/upload-artifact@v4
