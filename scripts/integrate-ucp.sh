@@ -2,7 +2,7 @@
 set -euo pipefail
 
 : "${UCP_REPO:=https://github.com/liulilittle/ucp.git}"
-: "${UCP_REF:=main}"
+: "${UCP_REF:=}"
 
 workdir="$(mktemp -d)"
 trap 'rm -rf "$workdir"' EXIT
@@ -16,7 +16,13 @@ else
   exit 1
 fi
 
-git clone --depth 1 --branch "$UCP_REF" "$UCP_REPO" "$workdir/ucp"
+if [ -n "$UCP_REF" ]; then
+  git clone --depth 1 --branch "$UCP_REF" "$UCP_REPO" "$workdir/ucp"
+else
+  git clone --depth 1 "$UCP_REPO" "$workdir/ucp"
+fi
+ucp_commit="$(git -C "$workdir/ucp" rev-parse --short=12 HEAD)"
+echo "Using UCP source ${UCP_REPO}@${ucp_commit}"
 
 install -m 0644 "$workdir/ucp/linux/tcp_ucp.c" net/ipv4/tcp_ucp.c
 

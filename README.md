@@ -84,6 +84,16 @@ UCP 源码来自：
 https://github.com/liulilittle/ucp/tree/main/linux
 ```
 
+构建时默认不锁定 commit，会浅克隆 UCP 仓库默认分支的最新代码。也就是说，每次 GitHub Actions 编译都会同步拉取 UCP 最新源码。
+
+如果需要固定某个分支、tag 或 commit，可以在 workflow 或本地执行时设置：
+
+```bash
+UCP_REF=<branch-or-tag-or-commit> bash scripts/integrate-ucp.sh
+```
+
+截至最近检查，UCP 上游 `main` 的 `linux/tcp_ucp.c` 仍然使用旧内核 API：`ucp_main(struct sock *sk, const struct rate_sample *rs)` 和 `.min_tso_segs = ucp_min_tso_segs`。因此本仓库仍会在构建时自动做 Kernel 7.0 API 兼容 patch。
+
 构建时会复制 `linux/tcp_ucp.c` 到内核源码的 `net/ipv4/tcp_ucp.c`，并注册：
 
 ```text
