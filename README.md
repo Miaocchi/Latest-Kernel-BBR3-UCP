@@ -49,6 +49,32 @@ echo 'net.ipv4.tcp_collapse_max_bytes=6291456' | sudo tee /etc/sysctl.d/99-tcp-c
 sudo sysctl --system
 ```
 
+### Cloudflare 风格默认 TCP 行为
+
+仓库额外提供 `scripts/apply-cloudflare-tcp-defaults.sh`，构建时会把部分 TCP 默认值改成更偏向高吞吐、低延迟的配置：
+
+```text
+net.ipv4.tcp_congestion_control = bbr
+net.core.default_qdisc = fq
+net.ipv4.tcp_sack = 1
+net.ipv4.tcp_fastopen = 3
+net.ipv4.tcp_notsent_lowat = 131072
+net.ipv4.tcp_adv_win_scale = -2
+net.ipv4.tcp_collapse_max_bytes = 6291456
+net.ipv4.tcp_rmem = 4096 131072 67108864
+net.ipv4.tcp_wmem = 4096 16384 67108864
+```
+
+说明：
+
+- BBRv3 作为默认拥塞控制算法。
+- 默认 qdisc 从 `fq_codel` 改为 `fq`，为 BBR pacing 提供更合适的队列调度。
+- SACK 默认开启，提升长距离和轻微丢包链路的恢复效率。
+- TCP Fast Open 默认开启客户端和服务端能力。
+- `tcp_notsent_lowat` 限制应用未发送队列，减少应用层堆积导致的延迟。
+- `tcp_adv_win_scale=-2` 减少自动调优为接收窗口预留的比例，降低 bufferbloat 风险。
+- `tcp_rmem/tcp_wmem` 保留自动调优，但把最大值提高到 64 MiB，适合高 BDP 链路。
+
 ### UCP 拥塞控制
 
 UCP 源码来自：
@@ -90,9 +116,10 @@ GitHub Actions 工作流位于：
 4. 修改内核源码 `Makefile` 中的版本号。
 5. 执行 `scripts/apply-cloudflare-tcp-collapse.sh` 注入 Cloudflare TCP 优化。
 6. 执行 `scripts/integrate-ucp.sh` 集成 UCP。
-7. 启用 `CONFIG_TCP_CONG_UCP=m`。
-8. 执行 `make bindeb-pkg` 构建 Debian 内核包。
-9. 上传构建产物并创建 GitHub Release。
+7. 执行 `scripts/apply-cloudflare-tcp-defaults.sh` 修改内核 TCP 默认行为。
+8. 启用 `CONFIG_TCP_CONG_UCP=m`，并设置默认 qdisc 为 `fq`。
+9. 执行 `make bindeb-pkg` 构建 Debian 内核包。
+10. 上传构建产物并创建 GitHub Release。
 
 Release tag 格式：
 
@@ -200,6 +227,12 @@ scripts/integrate-ucp.sh
 拉取 UCP 源码，复制 `tcp_ucp.c`，修改内核 `Makefile` 和 `Kconfig`，并自动处理新旧 TCP API 差异。
 
 ```text
+scripts/apply-cloudflare-tcp-defaults.sh
+```
+
+修改内核默认 TCP 参数和默认 qdisc，使新内核开箱即采用更接近 Cloudflare 文章建议的 TCP 行为。
+
+```text
 patches/cloudflare-tcp-collapse-max-bytes.patch
 ```
 
@@ -215,5 +248,6 @@ Cloudflare 原始 patch，保留为来源参考。
 
 - UCP 是第三方拥塞控制实现，生产环境使用前建议自行压测和审计。
 - `net.ipv4.tcp_collapse_max_bytes` 默认为 `0`，不会改变默认行为，只有手动配置后才生效。
+- 本仓库当前会把 `net.ipv4.tcp_collapse_max_bytes` 的内核默认值改为 `6291456`，如果希望保持完全上游默认行为，可以删除 workflow 中的 `Apply Cloudflare-oriented TCP defaults` 步骤，或修改 `scripts/apply-cloudflare-tcp-defaults.sh`。
 - 如果未来 Linux TCP API 再次变化，需要同步更新 `scripts/integrate-ucp.sh`。
 - 构建完整内核耗时较长，GitHub Actions 的 runner 性能和限额可能影响构建时间。

@@ -86,10 +86,19 @@ jobs:
         run: |
           bash ../../scripts/integrate-ucp.sh
 
+      - name: Apply Cloudflare-oriented TCP defaults
+        working-directory: ./kernel/linux/
+        run: |
+          bash ../../scripts/apply-cloudflare-tcp-defaults.sh
+
       - name: Setting .config
         working-directory: ./kernel/linux/
         run: |
           curl -sSL https://raw.githubusercontent.com/Naochen2799/Latest-Kernel-BBR3/main/.config > .config
+          scripts/config --enable NET_SCH_FQ
+          scripts/config --enable DEFAULT_FQ
+          scripts/config --disable DEFAULT_FQ_CODEL
+          scripts/config --set-str DEFAULT_NET_SCH "fq"
           scripts/config --module TCP_CONG_UCP
           make olddefconfig
 

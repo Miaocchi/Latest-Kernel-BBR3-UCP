@@ -43,8 +43,10 @@ if re.search(r'void\s*\(\*cong_control\)\s*\(\s*struct sock \*sk\s*,\s*u32 ack\s
 
 if has_tso_segs and not has_min_tso_segs:
     if 'static void ucp_tso_segs(' not in text and 'static u32 ucp_tso_segs(' not in text:
-        marker = '    return min(segs, 0x7FU);\n}\n'
-        insert_at = text.index(marker) + len(marker)
+        match = re.search(r'\nstatic u32 ucp_tso_segs_goal\(struct sock\* sk\)\n\{.*?\n\}\n', text, re.S)
+        if not match:
+            raise RuntimeError('Could not find ucp_tso_segs_goal')
+        insert_at = match.end()
 
         if re.search(r'u32\s*\(\*tso_segs\)\s*\(', tcp_api):
             wrapper = '''
@@ -133,10 +135,15 @@ config TCP_CONG_UCP
 
 if 'config TCP_CONG_UCP' not in text:
     marker = 'config TCP_CONG_BBR\n'
-    start = text.index(marker)
-    next_config = text.find('\nconfig ', start + len(marker))
-    endif = text.find('\nendif', start + len(marker))
-    insert_at = next_config if next_config != -1 and next_config < endif else endif
+    if marker in text:
+        start = text.index(marker)
+        next_config = text.find('\nconfig ', start + len(marker))
+        endif = text.find('\nendif', start + len(marker))
+        insert_at = next_config if next_config != -1 and (endif == -1 or next_config < endif) else endif
+    else:
+        insert_at = text.find('\nchoice\n\tprompt "Default TCP congestion control"')
+    if insert_at == -1:
+        raise RuntimeError('Could not find insertion point for TCP_CONG_UCP')
     text = text[:insert_at] + '\n' + ucp_config + text[insert_at:]
 
 if 'config DEFAULT_UCP' not in text:
@@ -156,6 +163,8 @@ config DEFAULT_UCP
 default_map = 'default "bbr" if DEFAULT_BBR\n'
 if default_map in text and 'default "ucp" if DEFAULT_UCP' not in text:
     text = text.replace(default_map, default_map + '\tdefault "ucp" if DEFAULT_UCP\n', 1)
+elif 'default "cubic"\n' in text and 'default "ucp" if DEFAULT_UCP' not in text:
+    text = text.replace('default "cubic"\n', '\tdefault "ucp" if DEFAULT_UCP\n\tdefault "cubic"\n', 1)
 
 kconfig.write_text(text, encoding='utf-8')
 PY
