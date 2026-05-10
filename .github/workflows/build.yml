@@ -76,10 +76,21 @@ jobs:
           sed -i "s/^PATCHLEVEL = .*/PATCHLEVEL = $patchlevel/" Makefile
           sed -i "s/^SUBLEVEL = .*/SUBLEVEL = $sublevel/" Makefile
 
+      - name: Apply Cloudflare tcp collapse patch
+        working-directory: ./kernel/linux/
+        run: |
+          bash ../../scripts/apply-cloudflare-tcp-collapse.sh
+
+      - name: Integrate UCP congestion control
+        working-directory: ./kernel/linux/
+        run: |
+          bash ../../scripts/integrate-ucp.sh
+
       - name: Setting .config
         working-directory: ./kernel/linux/
         run: |
           curl -sSL https://raw.githubusercontent.com/Naochen2799/Latest-Kernel-BBR3/main/.config > .config
+          scripts/config --module TCP_CONG_UCP
           make olddefconfig
 
       - name: Build Kernel
