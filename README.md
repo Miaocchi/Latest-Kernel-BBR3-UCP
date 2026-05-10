@@ -139,6 +139,28 @@ arm64-6.9.1
 
 ## 安装内核包
 
+推荐使用自动安装脚本：
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/Miaocchi/Latest-Kernel-BBR3-UCP/main/install.sh)
+```
+
+脚本会自动识别 `x86_64` / `arm64`，从最新匹配架构的 GitHub Release 下载所有 `.deb`，然后执行安装。
+
+如果要保留下载的 `.deb` 文件：
+
+```bash
+KEEP_DEBS=1 bash <(curl -fsSL https://raw.githubusercontent.com/Miaocchi/Latest-Kernel-BBR3-UCP/main/install.sh)
+```
+
+也可以使用兼容旧项目命名的入口：
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/Miaocchi/Latest-Kernel-BBR3-UCP/main/bbr3.sh)
+```
+
+### 手动安装
+
 从 Release 下载当前架构对应的所有 `.deb` 文件，然后执行：
 
 ```bash
@@ -215,6 +237,18 @@ make net/ipv4/tcp_input.o net/ipv4/tcp_ipv4.o -j$(nproc)
 ```
 
 GitHub Actions 自动构建与发布流程。
+
+```text
+install.sh
+```
+
+自动安装脚本，会从本仓库 Release 下载当前架构对应的内核 `.deb` 并安装。
+
+```text
+bbr3.sh
+```
+
+兼容旧安装命令的入口脚本，会转发到 `install.sh`。
 
 ```text
 scripts/apply-cloudflare-tcp-collapse.sh
