@@ -54,7 +54,7 @@ sudo sysctl --system
 仓库额外提供 `scripts/apply-cloudflare-tcp-defaults.sh`，构建时会把部分 TCP 默认值改成更偏向高吞吐、低延迟的配置：
 
 ```text
-net.ipv4.tcp_congestion_control = bbr
+net.ipv4.tcp_congestion_control = ucp
 net.core.default_qdisc = fq
 net.ipv4.tcp_sack = 1
 net.ipv4.tcp_fastopen = 3
@@ -67,7 +67,8 @@ net.ipv4.tcp_wmem = 4096 16384 67108864
 
 说明：
 
-- BBRv3 作为默认拥塞控制算法。
+- UCP 作为默认拥塞控制算法，并内建进内核，不需要手动 `modprobe`。
+- BBRv3 仍然内建可用，可以通过 sysctl 切换到 `bbr`。
 - 默认 qdisc 从 `fq_codel` 改为 `fq`，为 BBR pacing 提供更合适的队列调度。
 - SACK 默认开启，提升长距离和轻微丢包链路的恢复效率。
 - TCP Fast Open 默认开启客户端和服务端能力。
@@ -86,10 +87,10 @@ https://github.com/liulilittle/ucp/tree/main/linux
 构建时会复制 `linux/tcp_ucp.c` 到内核源码的 `net/ipv4/tcp_ucp.c`，并注册：
 
 ```text
-CONFIG_TCP_CONG_UCP=m
+CONFIG_TCP_CONG_UCP=y
 ```
 
-UCP 默认编译为模块 `tcp_ucp.ko`。
+UCP 默认内建进内核，并作为默认拥塞控制算法，不需要手动加载模块。
 
 ## Kernel 7.0 API 兼容
 
@@ -117,7 +118,7 @@ GitHub Actions 工作流位于：
 5. 执行 `scripts/apply-cloudflare-tcp-collapse.sh` 注入 Cloudflare TCP 优化。
 6. 执行 `scripts/integrate-ucp.sh` 集成 UCP。
 7. 执行 `scripts/apply-cloudflare-tcp-defaults.sh` 修改内核 TCP 默认行为。
-8. 启用 `CONFIG_TCP_CONG_UCP=m`，并设置默认 qdisc 为 `fq`。
+8. 启用 `CONFIG_TCP_CONG_UCP=y` 和 `CONFIG_DEFAULT_UCP=y`，并设置默认 qdisc 为 `fq`。
 9. 执行 `make bindeb-pkg` 构建 Debian 内核包。
 10. 上传构建产物并创建 GitHub Release。
 
@@ -168,26 +169,24 @@ sysctl net.ipv4.tcp_congestion_control
 sysctl net.ipv4.tcp_available_congestion_control
 ```
 
-## 启用 UCP
+## UCP 默认启用
 
-先加载模块：
+新内核启动后默认使用 UCP：
 
 ```bash
-sudo modprobe tcp_ucp
+sysctl net.ipv4.tcp_congestion_control
 ```
 
-临时切换到 UCP：
+期望输出：
 
-```bash
-sudo sysctl -w net.ipv4.tcp_congestion_control=ucp
+```text
+net.ipv4.tcp_congestion_control = ucp
 ```
 
-持久化：
+如果想临时切回 BBRv3：
 
 ```bash
-echo tcp_ucp | sudo tee /etc/modules-load.d/tcp_ucp.conf
-echo 'net.ipv4.tcp_congestion_control=ucp' | sudo tee /etc/sysctl.d/99-ucp.conf
-sudo sysctl --system
+sudo sysctl -w net.ipv4.tcp_congestion_control=bbr
 ```
 
 ## 本地验证
@@ -203,6 +202,7 @@ make net/ipv4/tcp_input.o net/ipv4/tcp_ipv4.o -j$(nproc)
 验证结果：
 
 - UCP `tcp_ucp.o` 编译通过。
+- UCP 可作为 `CONFIG_TCP_CONG_UCP=y` 内建，并设置为默认拥塞控制。
 - Cloudflare 修改涉及的 `tcp_input.o` 编译通过。
 - Cloudflare 修改涉及的 `tcp_ipv4.o` 编译通过。
 

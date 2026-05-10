@@ -162,9 +162,15 @@ config DEFAULT_UCP
 
 default_map = 'default "bbr" if DEFAULT_BBR\n'
 if default_map in text and 'default "ucp" if DEFAULT_UCP' not in text:
-    text = text.replace(default_map, default_map + '\tdefault "ucp" if DEFAULT_UCP\n', 1)
+    text = text.replace(default_map, '\tdefault "ucp" if DEFAULT_UCP\n' + default_map, 1)
 elif 'default "cubic"\n' in text and 'default "ucp" if DEFAULT_UCP' not in text:
     text = text.replace('default "cubic"\n', '\tdefault "ucp" if DEFAULT_UCP\n\tdefault "cubic"\n', 1)
+elif 'default "ucp" if DEFAULT_UCP' in text:
+    text = text.replace('\tdefault "ucp" if DEFAULT_UCP\n', '')
+    if default_map in text:
+        text = text.replace(default_map, '\tdefault "ucp" if DEFAULT_UCP\n' + default_map, 1)
+    else:
+        text = text.replace('default "cubic"\n', '\tdefault "ucp" if DEFAULT_UCP\n\tdefault "cubic"\n', 1)
 
 kconfig.write_text(text, encoding='utf-8')
 PY

@@ -99,7 +99,9 @@ jobs:
           scripts/config --enable DEFAULT_FQ
           scripts/config --disable DEFAULT_FQ_CODEL
           scripts/config --set-str DEFAULT_NET_SCH "fq"
-          scripts/config --module TCP_CONG_UCP
+          scripts/config --enable TCP_CONG_UCP
+          scripts/config --enable DEFAULT_UCP
+          scripts/config --set-str DEFAULT_TCP_CONG "ucp"
           make olddefconfig
 
       - name: Build Kernel
