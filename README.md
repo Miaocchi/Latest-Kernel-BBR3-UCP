@@ -121,6 +121,8 @@ GitHub Actions 工作流位于：
 
 工作流需要仓库的 `GITHUB_TOKEN` 具备 `contents: write` 权限，否则内核包可以构建成功，但创建 Release 时会报 `Resource not accessible by integration`。
 
+清理策略会保留最近 4 个 Release，对应两个完整内核版本的双架构产物，避免新版本构建或发布失败时没有可安装版本。
+
 主要步骤：
 
 1. 从 `https://www.kernel.org` 获取最新 stable 内核版本。
@@ -162,6 +164,14 @@ bash <(curl -fsSL https://raw.githubusercontent.com/Miaocchi/Latest-Kernel-BBR3-
 ```bash
 KEEP_DEBS=1 bash <(curl -fsSL https://raw.githubusercontent.com/Miaocchi/Latest-Kernel-BBR3-UCP/main/install.sh)
 ```
+
+仓库会保留最近两个内核版本的 Release（每个版本包含 `x86_64` 和 `arm64` 两个 tag，共 4 个 Release）。如果最新版本安装有问题，可以安装上一个保留版本：
+
+```bash
+RELEASE_OFFSET=1 bash <(curl -fsSL https://raw.githubusercontent.com/Miaocchi/Latest-Kernel-BBR3-UCP/main/install.sh)
+```
+
+`RELEASE_OFFSET=0` 表示当前架构的最新 Release，`RELEASE_OFFSET=1` 表示当前架构的上一个 Release。
 
 也可以使用兼容旧项目命名的入口：
 

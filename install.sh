@@ -4,6 +4,7 @@ set -euo pipefail
 REPO="${REPO:-Miaocchi/Latest-Kernel-BBR3-UCP}"
 DOWNLOAD_DIR="${DOWNLOAD_DIR:-/tmp/latest-kernel-bbr3-ucp}"
 KEEP_DEBS="${KEEP_DEBS:-0}"
+RELEASE_OFFSET="${RELEASE_OFFSET:-0}"
 
 log() {
   printf '[INFO] %s\n' "$*"
@@ -43,7 +44,7 @@ install_dependencies() {
 latest_release_for_arch() {
   local arch="$1"
   curl -fsSL "https://api.github.com/repos/${REPO}/releases?per_page=50" |
-    jq -r --arg arch "${arch}-" '[.[] | select(.tag_name | startswith($arch))][0].tag_name // empty'
+    jq -r --arg arch "${arch}-" --argjson offset "$RELEASE_OFFSET" '[.[] | select(.tag_name | startswith($arch))][$offset].tag_name // empty'
 }
 
 asset_urls_for_tag() {
@@ -105,7 +106,7 @@ main() {
   log "Detected architecture: ${arch}"
 
   tag="$(latest_release_for_arch "$arch")"
-  [ -n "$tag" ] || die "No release found for architecture ${arch} in ${REPO}"
+  [ -n "$tag" ] || die "No release found for architecture ${arch} in ${REPO} at offset ${RELEASE_OFFSET}"
   log "Using release: ${tag}"
 
   download_assets "$tag"
